@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tracking Dashboard</title>
+    <link rel="icon" type="image/svg+xml" id="favicon">
+    <script>
+        // Set favicon based on color scheme
+        function setFavicon() {
+            const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const color = isDark ? '#e0e0e0' : '#333';
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14v2.2l1.6 1"/><path d="M16 4h2a2 2 0 0 1 2 2v.832"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><circle cx="16" cy="16" r="6"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>`;
+            const favicon = document.getElementById('favicon');
+            if (favicon) {
+                favicon.href = 'data:image/svg+xml;base64,' + btoa(svg);
+            }
+        }
+
+        // Set on load
+        setFavicon();
+
+        // Listen for theme changes
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setFavicon);
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa;
+            color: #333;
+            padding: 20px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #1a1a1a;
+                color: #e0e0e0;
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .section {
+                background: #2a2a2a;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #a8d5e2;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            textarea {
+                background: #333;
+                color: #e0e0e0;
+                border-color: #444;
+            }
+
+            textarea:focus {
+                border-color: #5a8da8;
+            }
+        }
+
+        button {
+            background: #a8d5e2;
+            color: #333;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #8ec5d6;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            button {
+                background: #5a8da8;
+                color: #e0e0e0;
+            }
+
+            button:hover {
+                background: #4a7d98;
+            }
+        }
+
+        .notice {
+            background: #fff4e6;
+            border: 1px solid #ffd699;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .notice-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .chart-container {
+                background: #2a2a2a;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            padding: 12px 15px;
+            border-left: 4px solid #ddd;
+            margin-bottom: 10px;
+            background: #fafafa;
+            border-radius: 4px;
+        }
+
+        .task-date {
+            font-weight: 600;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .task-name {
+            font-size: 15px;
+            margin-bottom: 3px;
+        }
+
+        .task-time {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .task-duration {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
+        .category-controls {
+            margin-top: 20px;
+        }
+
+        .category-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .category-input-group input {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .category-input-group input:focus {
+            outline: none;
+            border-color: #a8d5e2;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .category-input-group input {
+                background: #333;
+                color: #e0e0e0;
+                border-color: #555;
+            }
+
+            .category-input-group input:focus {
+                border-color: #5a8da8;
+            }
+        }
+
+        .category-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .category-item {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-delete {
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .category-delete:hover {
+            opacity: 1;
+        }
+
+        .task-category-select {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .task-category-select select {
+            padding: 4px 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 12px;
+            background: white;
+            cursor: pointer;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .task-category-select select {
+                background: #333;
+                color: #e0e0e0;
+                border-color: #555;
+            }
+        }
+
+        .bookmark-toggle {
+            display: inline-block;
+            margin-left: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            vertical-align: middle;
+            opacity: 0.6;
+            transition: all 0.2s;
+        }
+
+        .bookmark-toggle:hover {
+            opacity: 1;
+        }
+
+        .bookmark-toggle.active {
+            opacity: 1;
+        }
+
+        .bookmark-toggle img {
+            width: 16px;
+            height: 16px;
+            display: block;
+        }
+
+        input[type="color"] {
+            width: 50px;
+            height: 38px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .stat-card {
+                background: #2a2a2a;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .filter-controls {
+            background: white;
+            padding: 20px 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .filter-controls {
+                background: #2a2a2a;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+        }
+
+        .filter-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0;
+        }
+
+        .filter-btn:hover {
+            background: #e8e8e8;
+            transform: none;
+        }
+
+        .filter-btn.active {
+            background: #a8d5e2;
+            border-color: #8ec5d6;
+            color: #333;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .filter-btn {
+                background: #3a3a3a;
+                border-color: #555;
+                color: #e0e0e0;
+            }
+
+            .filter-btn:hover {
+                background: #4a4a4a;
+            }
+
+            .filter-btn.active {
+                background: #5a8da8;
+                border-color: #4a7d98;
+                color: #e0e0e0;
+            }
+        }
+
+        .segmented-control {
+            display: none;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .segmented-control.visible {
+            display: inline-flex;
+        }
+
+        .segment-btn {
+            padding: 8px 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+
+        .segment-btn img {
+            width: 16px;
+            height: 16px;
+            display: block;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .segment-btn:hover img {
+            opacity: 0.8;
+        }
+
+        .segment-btn.active {
+            background: #a8d5e2;
+        }
+
+        .segment-btn.active img {
+            opacity: 1;
+        }
+
+        .segment-btn:first-child {
+            border-right: 1px solid #e0e0e0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .segmented-control {
+                background: #3a3a3a;
+                border-color: #555;
+            }
+
+            .segment-btn.active {
+                background: #5a8da8;
+            }
+
+            .segment-btn:first-child {
+                border-right-color: #555;
+            }
+        }
+
+        .period-carousel {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .period-carousel.hidden {
+            display: none;
+        }
+
+        .period-scroll {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .period-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .period-card {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .period-card:hover {
+            border-color: #a8d5e2;
+            transform: translateY(-2px);
+        }
+
+        .period-card.selected {
+            background: #a8d5e2;
+            border-color: #8ec5d6;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .period-card {
+                background: #333;
+                border-color: #555;
+                color: #e0e0e0;
+            }
+
+            .period-card:hover {
+                border-color: #5a8da8;
+            }
+
+            .period-card.selected {
+                background: #5a8da8;
+                border-color: #4a7d98;
+            }
+        }
+
+        .custom-range {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .custom-range.hidden {
+            display: none;
+        }
+
+        #tasksSection.hidden {
+            display: none;
+        }
+
+        #tasksSection h2 {
+            margin-bottom: 20px;
+        }
+
+        #tasksSection:has(.task-list[style*="display: none"]) h2 {
+            margin-bottom: 0;
+        }
+
+        .custom-range input[type="date"] {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .custom-range input[type="date"]:focus {
+            outline: none;
+            border-color: #a8d5e2;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .custom-range input[type="date"] {
+                background: #333;
+                color: #e0e0e0;
+                border-color: #555;
+                color-scheme: dark;
+            }
+
+            .custom-range input[type="date"]:focus {
+                border-color: #5a8da8;
+            }
+        }
+
+        .custom-range-label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .untracked-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 20px;
+        }
+
+        .untracked-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .untracked-toggle label {
+            font-size: 13px;
+            color: #666;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .day-carousel {
+            background: white;
+            padding: 20px 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .day-carousel {
+                background: #2a2a2a;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+        }
+
+        .carousel-arrow {
+            background: #f5f5f5;
+            border: none;
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        .carousel-arrow img {
+            width: 20px;
+            height: 20px;
+            display: block;
+            filter: brightness(0) saturate(100%) invert(40%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(98%) contrast(90%);
+        }
+
+        .carousel-arrow:hover {
+            background: #e8e8e8;
+        }
+
+        .carousel-arrow:disabled {
+            opacity: 0.3;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .carousel-arrow {
+                background: #3a3a3a;
+            }
+
+            .carousel-arrow img {
+                filter: brightness(0) saturate(100%) invert(75%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(98%) contrast(90%);
+            }
+
+            .carousel-arrow:hover {
+                background: #4a4a4a;
+            }
+        }
+
+        .carousel-scroll {
+            overflow-x: auto;
+            display: flex;
+            gap: 10px;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 4px 0;
+        }
+
+        .carousel-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .day-card {
+            flex-shrink: 0;
+            width: 60px;
+            padding: 10px 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .day-card:hover {
+            border-color: #a8d5e2;
+            transform: translateY(-2px);
+        }
+
+        .day-card.weekend {
+            background: #ffd4d4;
+        }
+
+        .day-card.selected {
+            background: #a8d5e2;
+            border-color: #8ec5d6;
+        }
+
+        .day-card.weekend.selected {
+            background: #a8d5e2;
+            border-color: #8ec5d6;
+        }
+
+        .day-card.no-data {
+            opacity: 0.4;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .day-card {
+                background: #333;
+                border-color: #555;
+            }
+
+            .day-card:hover {
+                border-color: #5a8da8;
+            }
+
+            .day-card.weekend {
+                background: #4a3535;
+            }
+
+            .day-card.selected {
+                background: #5a8da8;
+                border-color: #4a7d98;
+            }
+
+            .day-card.weekend.selected {
+                background: #5a8da8;
+                border-color: #4a7d98;
+            }
+        }
+
+        .day-card .day-num {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .day-card .day-name {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-controls {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .custom-range {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TickTick Time Tracking Dashboard</h1>
+
+        <div class="section">
+            <h2>Import time data</h2>
+            <textarea id="dataInput" placeholder="Paste your calendar data here..."></textarea>
+            <button onclick="importData()">Import data</button>
+            <div id="importNotice" style="margin-top: 15px;"></div>
+        </div>
+
+        <div class="day-carousel">
+            <button class="carousel-arrow" onclick="scrollCarousel(-1)"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tbGVmdC1pY29uIGx1Y2lkZS1jaGV2cm9uLWxlZnQiPjxwYXRoIGQ9Im0xNSAxOC02LTYgNi02Ii8+PC9zdmc+" alt="Previous"></button>
+            <div class="carousel-scroll" id="carouselScroll"></div>
+            <button class="carousel-arrow" onclick="scrollCarousel(1)"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQtaWNvbiBsdWNpZGUtY2hldnJvbi1yaWdodCI+PHBhdGggZD0ibTkgMTggNi02LTYtNiIvPjwvc3ZnPg==" alt="Next"></button>
+        </div>
+
+        <div class="section" id="tasksSection">
+            <h2 style="display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                <span onclick="toggleTasksSection()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                    Tasks
+                    <img id="tasksChevron" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tZG93bi1pY29uIGx1Y2lkZS1jaGV2cm9uLWRvd24iPjxwYXRoIGQ9Im02IDkgNiA2IDYtNiIvPjwvc3ZnPg==" style="width: 20px; height: 20px;" alt="Toggle">
+                </span>
+                <button onclick="clearDayTasks()" style="padding: 6px 12px; font-size: 13px; background: #f5f5f5; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; transition: all 0.2s;">Clear</button>
+            </h2>
+            <ul class="task-list" id="taskList"></ul>
+        </div>
+
+        <div class="filter-controls">
+            <div class="filter-buttons">
+                <button class="filter-btn" onclick="setFilter('week', event)">Week</button>
+                <button class="filter-btn" onclick="setFilter('month', event)">Month</button>
+                <button class="filter-btn" onclick="setFilter('year', event)">Year</button>
+                <button class="filter-btn" onclick="setFilter('all', event)">All time</button>
+                <button class="filter-btn" onclick="setFilter('custom', event)">Custom</button>
+            </div>
+            <div class="segmented-control">
+                <button class="segment-btn active" data-mode="rolling" onclick="setMode('rolling')">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNsb2NrOC1pY29uIGx1Y2lkZS1jbG9jay04Ij48cGF0aCBkPSJNMTIgNnY2bC00IDIiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjwvc3ZnPg==" alt="Rolling">
+                </button>
+                <button class="segment-btn" data-mode="calendar" onclick="setMode('calendar')">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNhbGVuZGFyLWljb24gbHVjaWRlLWNhbGVuZGFyIj48cGF0aCBkPSJNOCAydjQiLz48cGF0aCBkPSJNMTYgMnY0Ii8+PHJlY3Qgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB4PSIzIiB5PSI0IiByeD0iMiIvPjxwYXRoIGQ9Ik0zIDEwaDE4Ii8+PC9zdmc+" alt="Calendar">
+                </button>
+            </div>
+            <div class="period-carousel hidden" id="periodCarousel">
+                <button class="carousel-arrow" onclick="scrollPeriodCarousel(-1)"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tbGVmdC1pY29uIGx1Y2lkZS1jaGV2cm9uLWxlZnQiPjxwYXRoIGQ9Im0xNSAxOC02LTYgNi02Ii8+PC9zdmc+" alt="Previous"></button>
+                <div class="period-scroll" id="periodScroll"></div>
+                <button class="carousel-arrow" onclick="scrollPeriodCarousel(1)"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQtaWNvbiBsdWNpZGUtY2hldnJvbi1yaWdodCI+PHBhdGggZD0ibTkgMTggNi02LTYtNiIvPjwvc3ZnPg==" alt="Next"></button>
+            </div>
+            <div class="custom-range hidden" id="customRange">
+                <span class="custom-range-label">From:</span>
+                <input type="date" id="dateFrom" onchange="applyCustomRange()">
+                <span class="custom-range-label">To:</span>
+                <input type="date" id="dateTo" onchange="applyCustomRange()">
+            </div>
+        </div>
+
+        <div class="untracked-toggle" style="margin-bottom: 25px;">
+            <input type="checkbox" id="showUntracked" checked onchange="toggleUntracked()">
+            <label for="showUntracked">Show untracked</label>
+        </div>
+
+        <h2 style="margin-top: 30px; margin-bottom: 20px;">Stats</h2>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalHours">0</div>
+                <div class="stat-label">Total hours tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalTasks">0</div>
+                <div class="stat-label">Total tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalDays">0</div>
+                <div class="stat-label">Days logged</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">Time distribution by category</h3>
+                <div class="chart-wrapper">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">Daily time breakdown</h3>
+                <div class="chart-wrapper">
+                    <canvas id="dailyBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">Category comparison</h3>
+            <div class="chart-wrapper">
+                <canvas id="categoryBarChart"></canvas>
+            </div>
+        </div>
+
+        <h2 style="margin-top: 30px; margin-bottom: 20px;">Categories</h2>
+
+        <div class="section">
+            <div class="category-controls">
+                <div class="category-input-group">
+                    <input type="text" id="categoryName" placeholder="Category name">
+                    <input type="color" id="categoryColor" value="#ffd4d4">
+                    <button onclick="addCategory()">Add category</button>
+                </div>
+                <div class="category-list" id="categoryList"></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; padding-bottom: 30px;">
+            <button onclick="exportCSV()">Export to CSV</button>
+        </div>
+    </div>
+
+    <script>
+        // Data storage
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        let categories = JSON.parse(localStorage.getItem('categories')) || [];
+        let persistentCategories = JSON.parse(localStorage.getItem('persistentCategories')) || {};
+
+        // Pastel color palette (light mode)
+        const pastelColorsLight = [
+            '#ffd4d4', '#ffe4cc', '#fff4cc', '#e4f1d4',
+            '#d4f1f4', '#d4e4f4', '#e4d4f4', '#f4d4e4',
+            '#ffd9e6', '#ffe6d9', '#d9ffe6', '#d9e6ff'
+        ];
+
+        // Darker pastel palette for dark mode
+        const pastelColorsDark = [
+            '#8b5a5a', '#8b6e4c', '#8b7a4c', '#6e8b5a',
+            '#5a7a8b', '#5a6e8b', '#6e5a8b', '#8b5a6e',
+            '#8b5a73', '#8b735a', '#5a8b73', '#5a738b'
+        ];
+
+        // Chart colors
+        const chartColorLight = '#a8d5e2';
+        const chartColorDark = '#5a8da8';
+        const untrackedColorLight = '#f5f5f5';
+        const untrackedColorDark = '#3a3a3a';
+
+        let pieChart, dailyBarChart, categoryBarChart;
+        let currentFilter = 'all';
+        let customDateFrom = null;
+        let customDateTo = null;
+        let showUntracked = true;
+        let selectedDate = null;
+        let currentMode = 'rolling'; // rolling or calendar
+        let selectedPeriod = null; // stores selected week/month/year in calendar mode
+
+        // Detect dark mode
+        const isDarkMode = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const pastelColors = () => isDarkMode() ? pastelColorsDark : pastelColorsLight;
+        const chartColor = () => isDarkMode() ? chartColorDark : chartColorLight;
+        const untrackedColor = () => isDarkMode() ? untrackedColorDark : untrackedColorLight;
+
+        // Initialize
+        window.onload = function() {
+            // Load mode from localStorage
+            const savedMode = localStorage.getItem('filterMode');
+            if (savedMode) {
+                currentMode = savedMode;
+                document.querySelectorAll('.segment-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === currentMode);
+                });
+            }
+
+            renderDayCarousel();
+
+            // Select today by default
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            selectDate(todayStr);
+
+            renderCategories();
+        };
+
+        function renderDayCarousel() {
+            const carousel = document.getElementById('carouselScroll');
+            carousel.innerHTML = '';
+
+            const today = new Date();
+            const days = [];
+
+            // Generate last 30 days ending today
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                days.push(date);
+            }
+
+            days.forEach(date => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                const dayOfWeek = date.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                // Check if this date has any tasks
+                const hasData = tasks.some(task => task.date === dateStr);
+
+                const card = document.createElement('div');
+                let className = 'day-card';
+                if (isWeekend) className += ' weekend';
+                if (!hasData) className += ' no-data';
+                card.className = className;
+                card.setAttribute('data-date', dateStr);
+                card.onclick = () => selectDate(dateStr);
+
+                card.innerHTML = `
+                    <div class="day-num">${day}</div>
+                    <div class="day-name">${dayNames[dayOfWeek]}</div>
+                `;
+
+                carousel.appendChild(card);
+            });
+        }
+
+        function scrollCarousel(direction) {
+            const cards = document.querySelectorAll('.day-card');
+            let currentIndex = -1;
+
+            // Find currently selected day
+            cards.forEach((card, index) => {
+                if (card.classList.contains('selected')) {
+                    currentIndex = index;
+                }
+            });
+
+            // If no day is selected, select today or first day
+            if (currentIndex === -1) {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const todayStr = `${year}-${month}-${day}`;
+
+                cards.forEach((card, index) => {
+                    if (card.getAttribute('data-date') === todayStr) {
+                        currentIndex = index;
+                    }
+                });
+
+                if (currentIndex === -1) {
+                    currentIndex = cards.length - 1; // Default to last day
+                }
+            }
+
+            // Find next/previous day with data
+            let newIndex = currentIndex + direction;
+
+            // Skip days without data
+            while (newIndex >= 0 && newIndex < cards.length) {
+                const card = cards[newIndex];
+                if (!card.classList.contains('no-data')) {
+                    // Found a day with data
+                    const newDate = card.getAttribute('data-date');
+                    selectDate(newDate);
+
+                    // Scroll the card into view
+                    card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    updateCarouselArrows();
+                    return;
+                }
+                newIndex += direction;
+            }
+
+            // No valid day found, update arrows anyway
+            updateCarouselArrows();
+        }
+
+        function updateCarouselArrows() {
+            const cards = document.querySelectorAll('.day-card');
+            const leftArrow = document.querySelector('.day-carousel .carousel-arrow:first-child');
+            const rightArrow = document.querySelector('.day-carousel .carousel-arrow:last-child');
+
+            let currentIndex = -1;
+
+            // Find currently selected day
+            cards.forEach((card, index) => {
+                if (card.classList.contains('selected')) {
+                    currentIndex = index;
+                }
+            });
+
+            if (currentIndex === -1) return;
+
+            // Check if there's a valid previous day
+            let hasPrevious = false;
+            for (let i = currentIndex - 1; i >= 0; i--) {
+                if (!cards[i].classList.contains('no-data')) {
+                    hasPrevious = true;
+                    break;
+                }
+            }
+
+            // Check if there's a valid next day
+            let hasNext = false;
+            for (let i = currentIndex + 1; i < cards.length; i++) {
+                if (!cards[i].classList.contains('no-data')) {
+                    hasNext = true;
+                    break;
+                }
+            }
+
+            // Update arrow states
+            if (hasPrevious) {
+                leftArrow.disabled = false;
+            } else {
+                leftArrow.disabled = true;
+            }
+
+            if (hasNext) {
+                rightArrow.disabled = false;
+            } else {
+                rightArrow.disabled = true;
+            }
+        }
+
+        function selectDate(dateStr) {
+            selectedDate = dateStr;
+            currentFilter = null;
+
+            // Update day card states
+            document.querySelectorAll('.day-card').forEach(card => {
+                if (card.getAttribute('data-date') === dateStr) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+
+            // Deselect all filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Hide segmented control and period carousel when date is selected
+            document.querySelector('.segmented-control').classList.remove('visible');
+            document.getElementById('periodCarousel').classList.add('hidden');
+
+            // Show tasks section when date is selected
+            document.getElementById('tasksSection').classList.remove('hidden');
+
+            // Update carousel arrow states
+            updateCarouselArrows();
+
+            // Refresh display
+            renderTasks();
+            updateCharts();
+            updateStats();
+        }
+
+        function importData() {
+            const input = document.getElementById('dataInput').value;
+            const lines = input.split('\n').map(line => line.trim()).filter(line => line);
+
+            let currentDate = null;
+            let skippedTasks = [];
+            let futureDates = [];
+            let importedCount = 0;
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                // Check if line is a date
+                if (/^\d{4}-\d{2}-\d{2}$/.test(line)) {
+                    // Reject future dates
+                    if (line > todayStr) {
+                        futureDates.push(line);
+                        currentDate = null;
+                        continue;
+                    }
+                    currentDate = line;
+                    continue;
+                }
+
+                // Check if line is a time block (has start and end time)
+                const timeBlockMatch = line.match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
+                if (timeBlockMatch && currentDate) {
+                    // Next line should be the task name
+                    if (i + 1 < lines.length) {
+                        i++;
+                        const taskName = lines[i];
+                        const startTime = timeBlockMatch[1];
+                        const endTime = timeBlockMatch[2];
+
+                        // Calculate duration in minutes
+                        const [startH, startM] = startTime.split(':').map(Number);
+                        const [endH, endM] = endTime.split(':').map(Number);
+                        const duration = (endH * 60 + endM) - (startH * 60 + startM);
+
+                        // Check for persistent category assignment
+                        let category = null;
+                        if (persistentCategories[taskName]) {
+                            category = persistentCategories[taskName];
+                        }
+
+                        tasks.push({
+                            date: currentDate,
+                            name: taskName,
+                            startTime: startTime,
+                            endTime: endTime,
+                            duration: duration,
+                            category: category
+                        });
+
+                        importedCount++;
+                    }
+                } else if (/^\d{2}:\d{2}$/.test(line)) {
+                    // Line with only start time - skip it
+                    if (i + 1 < lines.length && !/^\d{2}:\d{2}/.test(lines[i + 1])) {
+                        i++;
+                        skippedTasks.push(lines[i]);
+                    }
+                }
+            }
+
+            // Save to localStorage
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+
+            // Show notice
+            let noticeHTML = '';
+
+            if (importedCount > 0) {
+                noticeHTML += `<div class="notice" style="background: #d4f1d4; border-color: #a8d5a8;">`;
+                noticeHTML += `<div class="notice-title">Import complete</div>`;
+                noticeHTML += `Imported ${importedCount} task(s).`;
+                noticeHTML += `</div>`;
+            }
+
+            if (futureDates.length > 0 || skippedTasks.length > 0) {
+                noticeHTML += `<div class="notice" style="margin-top: ${importedCount > 0 ? '10px' : '0'};">`;
+                noticeHTML += `<div class="notice-title">Import errors</div>`;
+
+                if (futureDates.length > 0) {
+                    noticeHTML += `Rejected ${futureDates.length} future date(s): ${futureDates.join(', ')}`;
+                }
+
+                if (skippedTasks.length > 0) {
+                    if (futureDates.length > 0) noticeHTML += `<br>`;
+                    noticeHTML += `Skipped ${skippedTasks.length} task(s) without end times: ${skippedTasks.join(', ')}`;
+                }
+
+                noticeHTML += `</div>`;
+            }
+
+            document.getElementById('importNotice').innerHTML = noticeHTML;
+
+            // Clear input
+            document.getElementById('dataInput').value = '';
+
+            // Refresh display
+            renderTasks();
+            updateCharts();
+            updateStats();
+        }
+
+        function addCategory() {
+            const name = document.getElementById('categoryName').value.trim();
+            const color = document.getElementById('categoryColor').value;
+
+            if (!name) return;
+
+            categories.push({ name, color });
+            localStorage.setItem('categories', JSON.stringify(categories));
+
+            document.getElementById('categoryName').value = '';
+            document.getElementById('categoryColor').value = pastelColors()[categories.length % pastelColors().length];
+
+            renderCategories();
+            renderTasks();
+            updateCharts();
+        }
+
+        function deleteCategory(index) {
+            const categoryName = categories[index].name;
+            categories.splice(index, 1);
+            localStorage.setItem('categories', JSON.stringify(categories));
+
+            // Remove category from tasks
+            tasks.forEach(task => {
+                if (task.category === categoryName) {
+                    task.category = null;
+                }
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+
+            // Remove from persistent categories
+            for (let taskName in persistentCategories) {
+                if (persistentCategories[taskName] === categoryName) {
+                    delete persistentCategories[taskName];
+                }
+            }
+            localStorage.setItem('persistentCategories', JSON.stringify(persistentCategories));
+
+            renderCategories();
+            renderTasks();
+            updateCharts();
+        }
+
+        function renderCategories() {
+            const list = document.getElementById('categoryList');
+            list.innerHTML = '';
+
+            categories.forEach((cat, index) => {
+                const item = document.createElement('div');
+                item.className = 'category-item';
+                item.style.backgroundColor = cat.color;
+                item.innerHTML = `
+                    <span>${cat.name}</span>
+                    <span class="category-delete" onclick="deleteCategory(${index})">✕</span>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function assignCategory(taskIndex, categoryName, makePersistent) {
+            tasks[taskIndex].category = categoryName || null;
+
+            if (makePersistent && categoryName) {
+                persistentCategories[tasks[taskIndex].name] = categoryName;
+                localStorage.setItem('persistentCategories', JSON.stringify(persistentCategories));
+
+                // Apply to all tasks with the same name
+                tasks.forEach(task => {
+                    if (task.name === tasks[taskIndex].name) {
+                        task.category = categoryName;
+                    }
+                });
+            }
+
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+            updateCharts();
+        }
+
+        function assignCategoryWithCheckbox(taskIndex) {
+            const selectElement = event.target;
+            const categoryName = selectElement.value;
+            const taskName = tasks[taskIndex].name;
+            const isPersistent = persistentCategories[taskName] ? true : false;
+
+            tasks[taskIndex].category = categoryName || null;
+
+            if (isPersistent && categoryName) {
+                // Update persistent category
+                persistentCategories[taskName] = categoryName;
+                localStorage.setItem('persistentCategories', JSON.stringify(persistentCategories));
+
+                // Apply to all tasks with the same name
+                tasks.forEach(task => {
+                    if (task.name === taskName) {
+                        task.category = categoryName;
+                    }
+                });
+            }
+
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+            updateCharts();
+        }
+
+        function togglePersistent(taskIndex, isChecked) {
+            const taskName = tasks[taskIndex].name;
+            const currentCategory = tasks[taskIndex].category;
+
+            if (isChecked && currentCategory) {
+                // Make persistent
+                persistentCategories[taskName] = currentCategory;
+                localStorage.setItem('persistentCategories', JSON.stringify(persistentCategories));
+
+                // Apply to all tasks with the same name
+                tasks.forEach(task => {
+                    if (task.name === taskName) {
+                        task.category = currentCategory;
+                    }
+                });
+            } else {
+                // Remove persistence
+                delete persistentCategories[taskName];
+                localStorage.setItem('persistentCategories', JSON.stringify(persistentCategories));
+            }
+
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+            updateCharts();
+        }
+
+        function getFilteredTasks() {
+            // Priority: selected date overrides filters
+            if (selectedDate) {
+                return tasks.filter(task => task.date === selectedDate);
+            }
+
+            if (currentFilter === 'all') {
+                return tasks;
+            }
+
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+
+            if (currentFilter === 'week') {
+                if (currentMode === 'calendar' && selectedPeriod) {
+                    // Calendar week: Monday to Sunday
+                    const monday = new Date(selectedPeriod);
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+                    const sundayStr = formatDate(sunday);
+                    return tasks.filter(task => task.date >= selectedPeriod && task.date <= sundayStr);
+                } else {
+                    // Rolling 7 days
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    const weekAgoStr = formatDate(weekAgo);
+                    return tasks.filter(task => task.date >= weekAgoStr && task.date <= todayStr);
+                }
+            } else if (currentFilter === 'month') {
+                if (currentMode === 'calendar' && selectedPeriod) {
+                    // Calendar month: 1st to last day
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+                    const monthIndex = monthNames.indexOf(selectedPeriod);
+                    if (monthIndex !== -1) {
+                        const firstDay = new Date(today.getFullYear(), monthIndex, 1);
+                        const lastDay = new Date(today.getFullYear(), monthIndex + 1, 0);
+                        const firstDayStr = formatDate(firstDay);
+                        const lastDayStr = formatDate(lastDay);
+                        return tasks.filter(task => task.date >= firstDayStr && task.date <= lastDayStr);
+                    }
+                } else {
+                    // Rolling 30 days
+                    const monthAgo = new Date(today);
+                    monthAgo.setDate(monthAgo.getDate() - 30);
+                    const monthAgoStr = formatDate(monthAgo);
+                    return tasks.filter(task => task.date >= monthAgoStr && task.date <= todayStr);
+                }
+            } else if (currentFilter === 'year') {
+                if (currentMode === 'calendar' && selectedPeriod) {
+                    // Calendar year: Jan 1 to Dec 31
+                    const yearNum = parseInt(selectedPeriod);
+                    const firstDay = new Date(yearNum, 0, 1);
+                    const lastDay = new Date(yearNum, 11, 31);
+                    const firstDayStr = formatDate(firstDay);
+                    const lastDayStr = formatDate(lastDay);
+                    return tasks.filter(task => task.date >= firstDayStr && task.date <= lastDayStr);
+                } else {
+                    // Rolling 365 days
+                    const yearAgo = new Date(today);
+                    yearAgo.setDate(yearAgo.getDate() - 365);
+                    const yearAgoStr = formatDate(yearAgo);
+                    return tasks.filter(task => task.date >= yearAgoStr && task.date <= todayStr);
+                }
+            } else if (currentFilter === 'custom') {
+                if (customDateFrom && customDateTo) {
+                    return tasks.filter(task => task.date >= customDateFrom && task.date <= customDateTo);
+                } else if (customDateFrom) {
+                    return tasks.filter(task => task.date >= customDateFrom);
+                } else if (customDateTo) {
+                    return tasks.filter(task => task.date <= customDateTo);
+                }
+            }
+            return tasks;
+        }
+
+        function applyCustomRange() {
+            customDateFrom = document.getElementById('dateFrom').value;
+            customDateTo = document.getElementById('dateTo').value;
+
+            if (customDateFrom || customDateTo) {
+                setFilter('custom');
+            }
+        }
+
+        function toggleUntracked() {
+            showUntracked = document.getElementById('showUntracked').checked;
+            updateCharts();
+        }
+
+        function toggleTasksSection() {
+            const taskList = document.getElementById('taskList');
+            const chevron = document.getElementById('tasksChevron');
+            const isCollapsed = taskList.style.display === 'none';
+
+            if (isCollapsed) {
+                // Expand
+                taskList.style.display = '';
+                chevron.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tZG93bi1pY29uIGx1Y2lkZS1jaGV2cm9uLWRvd24iPjxwYXRoIGQ9Im02IDkgNiA2IDYtNiIvPjwvc3ZnPg==';
+            } else {
+                // Collapse
+                taskList.style.display = 'none';
+                chevron.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQtaWNvbiBsdWNpZGUtY2hldnJvbi1yaWdodCI+PHBhdGggZD0ibTkgMTggNi02LTYtNiIvPjwvc3ZnPg==';
+            }
+        }
+
+        function clearDayTasks() {
+            if (!selectedDate) return;
+
+            if (!confirm(`Delete all tasks for ${selectedDate}?`)) {
+                return;
+            }
+
+            // Remove all tasks for the selected date
+            tasks = tasks.filter(task => task.date !== selectedDate);
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+
+            // Refresh display
+            renderDayCarousel();
+            renderTasks();
+            updateCharts();
+            updateStats();
+            updateCarouselArrows();
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            localStorage.setItem('filterMode', mode);
+
+            // Update segment button states
+            document.querySelectorAll('.segment-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+
+            // Show/hide period carousel
+            const periodCarousel = document.getElementById('periodCarousel');
+            if (mode === 'calendar' && (currentFilter === 'week' || currentFilter === 'month' || currentFilter === 'year')) {
+                periodCarousel.classList.remove('hidden');
+                renderPeriodCarousel();
+            } else {
+                periodCarousel.classList.add('hidden');
+            }
+
+            // Refresh display
+            updateCharts();
+            updateStats();
+        }
+
+        function renderPeriodCarousel() {
+            const carousel = document.getElementById('periodScroll');
+            carousel.innerHTML = '';
+
+            if (currentFilter === 'week') {
+                renderWeekCarousel(carousel);
+            } else if (currentFilter === 'month') {
+                renderMonthCarousel(carousel);
+            } else if (currentFilter === 'year') {
+                renderYearCarousel(carousel);
+            }
+        }
+
+        function renderWeekCarousel(carousel) {
+            const today = new Date();
+
+            // Get Monday of current week
+            const dayOfWeek = today.getDay();
+            const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            const currentMonday = new Date(today);
+            currentMonday.setDate(diff);
+
+            if (!selectedPeriod) {
+                selectedPeriod = formatDate(currentMonday);
+            }
+
+            // Display only the selected period
+            const card = document.createElement('div');
+            card.className = 'period-card selected';
+            card.textContent = selectedPeriod;
+            carousel.appendChild(card);
+        }
+
+        function renderMonthCarousel(carousel) {
+            const today = new Date();
+
+            if (!selectedPeriod) {
+                selectedPeriod = formatMonth(today);
+            }
+
+            // Display only the selected period
+            const card = document.createElement('div');
+            card.className = 'period-card selected';
+            card.textContent = selectedPeriod;
+            carousel.appendChild(card);
+        }
+
+        function renderYearCarousel(carousel) {
+            const currentYear = new Date().getFullYear();
+
+            if (!selectedPeriod) {
+                selectedPeriod = String(currentYear);
+            }
+
+            // Display only the selected period
+            const card = document.createElement('div');
+            card.className = 'period-card selected';
+            card.textContent = selectedPeriod;
+            carousel.appendChild(card);
+        }
+
+        function selectPeriod(period, dateObj) {
+            selectedPeriod = period;
+
+            // Update period card states
+            document.querySelectorAll('.period-card').forEach(card => {
+                card.classList.toggle('selected', card.textContent === period);
+            });
+
+            // Refresh display
+            updateCharts();
+            updateStats();
+        }
+
+        function scrollPeriodCarousel(direction) {
+            if (currentFilter === 'week') {
+                // Parse current week's Monday
+                const parts = selectedPeriod.split('-');
+                const monday = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+
+                // Move to next/previous week
+                monday.setDate(monday.getDate() + (direction * 7));
+
+                selectedPeriod = formatDate(monday);
+                renderPeriodCarousel();
+                updateCharts();
+                updateStats();
+            } else if (currentFilter === 'month') {
+                // Parse current month
+                const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+                const currentMonthIndex = months.indexOf(selectedPeriod);
+                const today = new Date();
+                const currentYear = today.getFullYear();
+
+                // Calculate new month
+                let newDate = new Date(currentYear, currentMonthIndex + direction, 1);
+
+                selectedPeriod = formatMonth(newDate);
+                renderPeriodCarousel();
+                updateCharts();
+                updateStats();
+            } else if (currentFilter === 'year') {
+                // Move to next/previous year
+                const currentYear = parseInt(selectedPeriod);
+                selectedPeriod = String(currentYear + direction);
+                renderPeriodCarousel();
+                updateCharts();
+                updateStats();
+            }
+        }
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatMonth(date) {
+            const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            return months[date.getMonth()];
+        }
+
+        function setFilter(filter, event) {
+            currentFilter = filter;
+            selectedDate = null; // Clear selected date when filter is chosen
+
+            // Deselect all day cards
+            document.querySelectorAll('.day-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // Update button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else if (filter === 'custom') {
+                // If called from applyCustomRange, find and activate the custom button
+                const customBtn = Array.from(document.querySelectorAll('.filter-btn')).find(
+                    btn => btn.textContent === 'Custom range'
+                );
+                if (customBtn) {
+                    customBtn.classList.add('active');
+                }
+            }
+
+            // Show/hide custom range date pickers
+            const customRange = document.getElementById('customRange');
+            if (filter === 'custom') {
+                customRange.classList.remove('hidden');
+            } else {
+                customRange.classList.add('hidden');
+            }
+
+            // Show/hide segmented control (only for week/month/year)
+            const segmentedControl = document.querySelector('.segmented-control');
+            if (filter === 'week' || filter === 'month' || filter === 'year') {
+                segmentedControl.classList.add('visible');
+            } else {
+                segmentedControl.classList.remove('visible');
+            }
+
+            // Show/hide period carousel for calendar mode
+            const periodCarousel = document.getElementById('periodCarousel');
+            if (currentMode === 'calendar' && (filter === 'week' || filter === 'month' || filter === 'year')) {
+                selectedPeriod = null; // Reset period selection when changing filters
+                periodCarousel.classList.remove('hidden');
+                renderPeriodCarousel();
+            } else {
+                periodCarousel.classList.add('hidden');
+            }
+
+            // Hide tasks section when filter is selected
+            document.getElementById('tasksSection').classList.add('hidden');
+
+            // Refresh display
+            renderTasks();
+            updateCharts();
+            updateStats();
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('taskList');
+            list.innerHTML = '';
+
+            const filteredTasks = getFilteredTasks();
+
+            // Sort tasks by date and time
+            const sortedTasks = [...filteredTasks].sort((a, b) => {
+                if (a.date !== b.date) return b.date.localeCompare(a.date);
+                return a.startTime.localeCompare(b.startTime);
+            });
+
+            sortedTasks.forEach((task, originalIndex) => {
+                const actualIndex = tasks.indexOf(task);
+                const item = document.createElement('li');
+                item.className = 'task-item';
+
+                // Get category color
+                const category = categories.find(c => c.name === task.category);
+                if (category) {
+                    item.style.borderLeftColor = category.color;
+                }
+
+                const hours = Math.floor(task.duration / 60);
+                const minutes = task.duration % 60;
+                const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+                // Check if task name has a persistent category
+                const isPersistent = persistentCategories[task.name] ? true : false;
+
+                let categorySelect = '<select onchange="assignCategoryWithCheckbox(' + actualIndex + ')" class="task-category-select">';
+                categorySelect += '<option value="">No category</option>';
+                categories.forEach(cat => {
+                    const selected = task.category === cat.name ? 'selected' : '';
+                    categorySelect += `<option value="${cat.name}" ${selected}>${cat.name}</option>`;
+                });
+                categorySelect += '</select>';
+
+                // Use filled bookmark when persistent, outline when not
+                const bookmarkIcon = isPersistent
+                    ? 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjYThkNWUyIiBzdHJva2U9IiNhOGQ1ZTIiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJtMTkgMjEtNy00LTcgNFY1YTIgMiAwIDAgMSAyLTJoMTBhMiAyIDAgMCAxIDIgMnYxNnoiLz48L3N2Zz4='
+                    : 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0xOSAyMS03LTQtNyA0VjVhMiAyIDAgMCAxIDItMmgxMGEyIDIgMCAwIDEgMiAydjE2eiIvPjwvc3ZnPg==';
+
+                const bookmarkToggle = `<button class="bookmark-toggle${isPersistent ? ' active' : ''}" onclick="togglePersistent(${actualIndex}, ${!isPersistent})" title="${isPersistent ? 'Remove persistent category' : 'Make category persistent'}">
+                    <img src="${bookmarkIcon}" alt="${isPersistent ? 'Persistent' : 'Not persistent'}">
+                </button>`;
+
+                item.innerHTML = `
+                    <div class="task-name">${task.name}</div>
+                    <div class="task-time">
+                        ${task.startTime} - ${task.endTime}
+                        <span class="task-duration">(${durationText})</span>
+                        ${categorySelect}
+                        ${bookmarkToggle}
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function updateStats() {
+            const filteredTasks = getFilteredTasks();
+            const totalMinutes = filteredTasks.reduce((sum, task) => sum + task.duration, 0);
+            const totalHours = (totalMinutes / 60).toFixed(1);
+            const uniqueDates = new Set(filteredTasks.map(t => t.date)).size;
+
+            document.getElementById('totalHours').textContent = totalHours;
+            document.getElementById('totalTasks').textContent = filteredTasks.length;
+            document.getElementById('totalDays').textContent = uniqueDates;
+        }
+
+        function updateCharts() {
+            updatePieChart();
+            updateDailyBarChart();
+            updateCategoryBarChart();
+        }
+
+        function updatePieChart() {
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            const filteredTasks = getFilteredTasks();
+
+            // Calculate time per category and total tracked time per day
+            const categoryData = {};
+            const dailyTracked = {};
+            let uncategorized = 0;
+
+            filteredTasks.forEach(task => {
+                dailyTracked[task.date] = (dailyTracked[task.date] || 0) + task.duration;
+
+                if (task.category) {
+                    categoryData[task.category] = (categoryData[task.category] || 0) + task.duration;
+                } else {
+                    uncategorized += task.duration;
+                }
+            });
+
+            // Calculate untracked time (24h - tracked time for each day)
+            const uniqueDates = Object.keys(dailyTracked);
+            let totalUntracked = 0;
+            uniqueDates.forEach(date => {
+                const trackedMinutes = dailyTracked[date];
+                const untrackedMinutes = (24 * 60) - trackedMinutes;
+                if (untrackedMinutes > 0) {
+                    totalUntracked += untrackedMinutes;
+                }
+            });
+
+            const labels = Object.keys(categoryData);
+            const data = Object.values(categoryData).map(mins => (mins / 60).toFixed(1));
+            const colors = labels.map(label => {
+                const cat = categories.find(c => c.name === label);
+                return cat ? cat.color : '#e0e0e0';
+            });
+
+            if (uncategorized > 0) {
+                labels.push('Uncategorized');
+                data.push((uncategorized / 60).toFixed(1));
+                colors.push(isDarkMode() ? '#555' : '#e0e0e0');
+            }
+
+            if (showUntracked && totalUntracked > 0) {
+                labels.push('Untracked');
+                data.push((totalUntracked / 60).toFixed(1));
+                colors.push(untrackedColor());
+            }
+
+            if (pieChart) pieChart.destroy();
+
+            pieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed + 'h';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDailyBarChart() {
+            const ctx = document.getElementById('dailyBarChart').getContext('2d');
+            const filteredTasks = getFilteredTasks();
+
+            // Calculate tracked time per day
+            const dailyData = {};
+            filteredTasks.forEach(task => {
+                dailyData[task.date] = (dailyData[task.date] || 0) + task.duration;
+            });
+
+            const labels = Object.keys(dailyData).sort();
+            const trackedData = labels.map(date => (dailyData[date] / 60).toFixed(1));
+            const untrackedData = labels.map(date => {
+                const trackedHours = dailyData[date] / 60;
+                const untrackedHours = 24 - trackedHours;
+                return untrackedHours.toFixed(1);
+            });
+
+            if (dailyBarChart) dailyBarChart.destroy();
+
+            const datasets = [{
+                label: 'Tracked',
+                data: trackedData,
+                backgroundColor: chartColor()
+            }];
+
+            if (showUntracked) {
+                datasets.push({
+                    label: 'Untracked',
+                    data: untrackedData,
+                    backgroundColor: untrackedColor()
+                });
+            }
+
+            dailyBarChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: showUntracked,
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: showUntracked
+                        },
+                        y: {
+                            stacked: showUntracked,
+                            beginAtZero: true,
+                            max: showUntracked ? 24 : null,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCategoryBarChart() {
+            const ctx = document.getElementById('categoryBarChart').getContext('2d');
+            const filteredTasks = getFilteredTasks();
+
+            // Calculate time per category
+            const categoryData = {};
+            filteredTasks.forEach(task => {
+                if (task.category) {
+                    categoryData[task.category] = (categoryData[task.category] || 0) + task.duration;
+                }
+            });
+
+            // Sort categories by value (highest to lowest)
+            const sortedEntries = Object.entries(categoryData)
+                .sort((a, b) => b[1] - a[1]);
+
+            const labels = sortedEntries.map(entry => entry[0]);
+            const data = sortedEntries.map(entry => (entry[1] / 60).toFixed(1));
+            const colors = labels.map(label => {
+                const cat = categories.find(c => c.name === label);
+                return cat ? cat.color : '#e0e0e0';
+            });
+
+            if (categoryBarChart) categoryBarChart.destroy();
+
+            categoryBarChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Hours',
+                        data: data,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function exportCSV() {
+            let csv = 'Date,Task Name,Start Time,End Time,Duration (minutes),Duration (hours),Category\n';
+
+            tasks.forEach(task => {
+                const hours = (task.duration / 60).toFixed(2);
+                const category = task.category || '';
+                csv += `${task.date},${task.name},${task.startTime},${task.endTime},${task.duration},${hours},${category}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'time-tracking-data.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
